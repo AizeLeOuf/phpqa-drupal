@@ -1,20 +1,21 @@
-FROM php:7.2-alpine
+# https://hub.docker.com/r/juampynr/drupal8ci/~/dockerfile/
+# https://github.com/docker-library/drupal/blob/master/8.7/apache/Dockerfile
+# https://gitlab.com/mog33/drupal8ci
+FROM mogtofu33/drupal8ci:8.7
 
-RUN wget -O composer.phar https://getcomposer.org/download/1.9.0/composer.phar \
-    && mv composer.phar /usr/local/bin/composer \
-    && chmod +x /usr/local/bin/composer
+LABEL maintainer="dev-drupal.com"
 
-ENV COMPOSER_MEMORY_LIMIT=-1
+# Remove the vanilla Drupal project that comes with the parent image.
+RUN rm -rf ..?* .[!.]* *
 
-RUN apk add --no-cache git
-
-RUN composer global require drupal/coder
-RUN composer global require dealerdirect/phpcodesniffer-composer-installer
-
-RUN apk add --no-cache libxslt-dev \
-    && docker-php-ext-configure xsl \
-    && docker-php-ext-install -j$(nproc) xsl
-
-RUN composer global require edgedesign/phpqa --update-no-dev
+# Change docroot since we use Composer Drupal project.
+RUN sed -ri -e 's!/var/www/html!/var/www/html/web!g' /etc/apache2/sites-available/*.conf \
+  && sed -ri -e 's!/var/www!/var/www/html/web!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+  
+RUN composer global require phpunit/phpunit:^6.5
 
 ENV PATH="/root/.composer/vendor/bin/:${PATH}"
+
+# Add tests.
+COPY run-tests.sh /scripts/run-tests.sh
+RUN chmod +x /scripts/*.sh
